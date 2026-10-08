@@ -1,6 +1,7 @@
 """Basic mounting functionality tests."""
 
 import logging
+import socket
 import sys
 
 import pytest
@@ -266,9 +267,16 @@ class TestMultipleServerMount:
         # Mount the working server
         main_app.mount(working_app, "working")
 
-        # Use an unreachable port
+        # Reserve an ephemeral port briefly, then close it so the connection
+        # is refused without depending on a particular port being unused.
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind(("127.0.0.1", 0))
+            unreachable_port = sock.getsockname()[1]
+
         unreachable_client = Client(
-            transport=SSETransport("http://127.0.0.1:9999/sse/"),
+            transport=SSETransport(
+                f"http://127.0.0.1:{unreachable_port}/sse/", sse_read_timeout=0.1
+            ),
             name="unreachable_client",
         )
 
